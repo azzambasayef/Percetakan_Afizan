@@ -222,12 +222,59 @@
                 <td style="padding: 16px 24px;">
                     <form action="{{ route('bahan.restock', $b->id_bahan) }}" method="POST" style="display: flex; gap: 8px; align-items: center; margin: 0;">
                         @csrf
+                        <select name="id_supplier" style="width: 120px; padding: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; border-radius: 4px;" required>
+                            <option value="">Pilih Supplier</option>
+                            @foreach($daftarSupplier as $sup)
+                                <option value="{{ $sup->id_supplier }}">{{ $sup->nama_supplier }}</option>
+                            @endforeach
+                        </select>
                         <input type="number" name="jumlah" min="1" placeholder="Jml Masuk" style="width: 80px; padding: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; border-radius: 4px;" required>
                         <button type="submit" class="action-btn" style="padding: 6px 12px; font-size: 12px; background: #6366f1; border: none; cursor: pointer;">+ Restock</button>
                     </form>
                 </td>
             </tr>
             @endforeach
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="glass-card" style="margin-top: 24px; padding: 0;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);">
+        <h3 style="margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase;">RIWAYAT RESTOK BAHAN (PEMBELIAN)</h3>
+    </div>
+    <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.1);">
+                <th style="padding: 16px 24px; font-weight: 500; color: var(--text-muted);">Tanggal</th>
+                <th style="padding: 16px 24px; font-weight: 500; color: var(--text-muted);">Supplier</th>
+                <th style="padding: 16px 24px; font-weight: 500; color: var(--text-muted);">Bahan Baku</th>
+                <th style="padding: 16px 24px; font-weight: 500; color: var(--text-muted);">Jml Masuk</th>
+                <th style="padding: 16px 24px; font-weight: 500; color: var(--text-muted);">Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($riwayatPembelian as $rb)
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding: 16px 24px;">{{ $rb->tanggal_pembelian }}</td>
+                <td style="padding: 16px 24px;">{{ $rb->supplier->nama_supplier ?? '-' }}</td>
+                <td style="padding: 16px 24px;">
+                    @foreach($rb->detail as $dp)
+                        {{ $dp->bahan->nama_bahan ?? 'Unknown' }} <br>
+                    @endforeach
+                </td>
+                <td style="padding: 16px 24px;">
+                    @foreach($rb->detail as $dp)
+                        <span style="color: var(--success);">+{{ $dp->jumlah_beli }} {{ $dp->bahan->satuan ?? '' }}</span> <br>
+                    @endforeach
+                </td>
+                <td style="padding: 16px 24px; color: var(--text-muted);">{{ $rb->user->nama ?? '-' }}</td>
+            </tr>
+            @endforeach
+            @if($riwayatPembelian->isEmpty())
+            <tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--text-muted);">Belum ada riwayat restok.</td></tr>
+            @endif
         </tbody>
     </table>
     </div>
@@ -328,11 +375,13 @@
                     </form>
                     @endif
                     
+                    @if($t->status_pesanan == 'sedang_cetak')
                     <form action="{{ route('pesanan.status', $t->id_pesanan) }}" method="POST">
                         @csrf
                         <input type="hidden" name="status" value="selesai">
                         <button type="submit" class="action-btn" style="padding: 8px 16px; font-size: 12px; background: #10b981;">Cetak Selesai</button>
                     </form>
+                    @endif
                 </td>
             </tr>
             @empty

@@ -57,19 +57,44 @@ Route::middleware('auth')->group(function () {
         // Data khusus Admin (Procurement)
         $daftarBahan = \App\Models\BahanBaku::orderBy('nama_bahan', 'asc')->get();
         $totalBahan = $daftarBahan->count();
+        $daftarSupplier = \App\Models\Supplier::orderBy('nama_supplier', 'asc')->get();
+        $riwayatPembelian = \App\Models\PembelianBahan::with(['supplier', 'user', 'detail.bahan'])
+            ->orderBy('id_pembelian', 'desc')->limit(10)->get();
 
         return view('dashboard', compact(
             'pesananHariIni', 'pesananAntrean', 'stokKritis', 'riwayatPesanan',
-            'tugasDesain', 'tugasCetak', 'pemasukanHariIni', 'daftarBahan', 'totalBahan', 'role', 'rentang'
+            'tugasDesain', 'tugasCetak', 'pemasukanHariIni', 'daftarBahan', 'totalBahan', 'daftarSupplier', 'riwayatPembelian', 'role', 'rentang'
         ));
     })->name('dashboard');
 
     Route::post('/bahan-baku/{id}/restock', function($id, \Illuminate\Http\Request $request) {
-        $request->validate(['jumlah' => 'required|numeric|min:1']);
+        $request->validate([
+            'jumlah' => 'required|numeric|min:1',
+            'id_supplier' => 'required|exists:supplier,id_supplier'
+        ]);
+        
         $bahan = \App\Models\BahanBaku::findOrFail($id);
-        $bahan->stok_sekarang += $request->jumlah;
-        $bahan->save();
-        return back()->with('success', "Berhasil menambah stok {$bahan->nama_bahan} sebanyak {$request->jumlah} {$bahan->satuan}!");
+        
+        // Catat ke pembelian_bahan
+        $pembelian = \App\Models\PembelianBahan::create([
+            'id_supplier' => $request->id_supplier,
+            'id_user' => \Illuminate\Support\Facades\Auth::user()->id_user,
+            'tanggal_pembelian' => now()->toDateString(),
+            'total_biaya' => 0 // Asumsi harga bisa di-update nanti
+        ]);
+        
+        // Catat ke detail_pembelian
+        \App\Models\DetailPembelian::create([
+            'id_pembelian' => $pembelian->id_pembelian,
+            'id_bahan' => $bahan->id_bahan,
+            'jumlah_beli' => $request->jumlah,
+            'harga_beli' => 0
+        ]);
+
+        // Gunakan Stored Procedure untuk tambah stok!
+        \Illuminate\Support\Facades\DB::statement("CALL sp_tambah_stok_bahan(?, ?)", [$bahan->id_bahan, $request->jumlah]);
+
+        return back()->with('success', "Berhasil merestok {$bahan->nama_bahan} dari Supplier!");
     })->name('bahan.restock');
 
     Route::post('/pesanan/{id}/status', function($id, \Illuminate\Http\Request $request) {
